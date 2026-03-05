@@ -7,6 +7,8 @@ from flask import Flask, request, send_file, url_for
 
 from .catalog import DataEntry, filter_entries, mime_for_format, scan_catalog
 
+SUPPORTED_TYPES = ("nuts", "lau")
+
 
 def _parse_level(raw_level: str | None) -> tuple[int | None, str | None]:
     if raw_level is None:
@@ -15,6 +17,15 @@ def _parse_level(raw_level: str | None) -> tuple[int | None, str | None]:
         return int(raw_level), None
     except ValueError:
         return None, "Query parameter 'level' muss eine ganze Zahl sein."
+
+
+def _validate_type(raw_type: str | None) -> tuple[str | None, str | None]:
+    if raw_type is None:
+        return None, None
+    normalized = raw_type.lower()
+    if normalized not in SUPPORTED_TYPES:
+        return None, f"Unsupported type '{raw_type}'. Erlaubt: {', '.join(SUPPORTED_TYPES)}."
+    return normalized, None
 
 
 def _serialize_entry(entry: DataEntry) -> dict:
@@ -50,13 +61,13 @@ def create_app() -> Flask:
         available_types = sorted({e.dataset_type for e in catalog})
         available_formats = sorted({e.data_format for e in catalog})
         versions_by_type: dict[str, list[str]] = {}
-        for dataset_type in sorted(set(available_types + ["nuts", "lau", "lor"])):
+        for dataset_type in sorted(set(available_types + list(SUPPORTED_TYPES))):
             versions_by_type[dataset_type] = sorted(
                 {e.version for e in catalog if e.dataset_type == dataset_type}
             )
 
         return {
-            "supported_types": ["nuts", "lau", "lor"],
+            "supported_types": list(SUPPORTED_TYPES),
             "available_types": available_types,
             "available_formats": available_formats,
             "versions_by_type": versions_by_type,
@@ -64,6 +75,10 @@ def create_app() -> Flask:
 
     @app.get("/api/v1/catalog")
     def get_catalog() -> tuple[dict, int]:
+        dataset_type, type_error = _validate_type(request.args.get("type"))
+        if type_error:
+            return {"error": type_error}, 400
+
         raw_level = request.args.get("level")
         level, level_error = _parse_level(raw_level)
         if level_error:
@@ -71,7 +86,7 @@ def create_app() -> Flask:
 
         filtered = filter_entries(
             catalog,
-            dataset_type=request.args.get("type"),
+            dataset_type=dataset_type,
             data_format=request.args.get("format"),
             version=request.args.get("version"),
             level=level,
@@ -81,15 +96,19 @@ def create_app() -> Flask:
 
     @app.get("/api/v1/versions/<dataset_type>/<data_format>")
     def versions(dataset_type: str, data_format: str) -> tuple[dict, int]:
+        normalized_type, type_error = _validate_type(dataset_type)
+        if type_error:
+            return {"error": type_error}, 400
+
         entries = filter_entries(
             catalog,
-            dataset_type=dataset_type.lower(),
+            dataset_type=normalized_type,
             data_format=data_format.lower(),
         )
         versions_list = sorted({e.version for e in entries})
         levels_list = sorted({e.level for e in entries if e.level is not None})
         return {
-            "type": dataset_type.lower(),
+            "type": normalized_type,
             "format": data_format.lower(),
             "versions": versions_list,
             "levels": levels_list,
@@ -98,6 +117,10 @@ def create_app() -> Flask:
 
     @app.get("/api/v1/data/<dataset_type>/<data_format>/<version>")
     def get_data(dataset_type: str, data_format: str, version: str):
+        normalized_type, type_error = _validate_type(dataset_type)
+        if type_error:
+            return {"error": type_error}, 400
+
         raw_level = request.args.get("level")
         level, level_error = _parse_level(raw_level)
         if level_error:
@@ -105,7 +128,7 @@ def create_app() -> Flask:
 
         matches = filter_entries(
             catalog,
-            dataset_type=dataset_type.lower(),
+            dataset_type=normalized_type,
             data_format=data_format.lower(),
             version=version,
             level=level,

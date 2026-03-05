@@ -44,8 +44,6 @@ def _normalize_type(raw_namespace: str) -> tuple[str, int | None]:
         dataset_type = "nuts"
     elif upper.startswith("LAU"):
         dataset_type = "lau"
-    elif upper.startswith("LOR"):
-        dataset_type = "lor"
     else:
         dataset_type = raw_namespace.lower()
 

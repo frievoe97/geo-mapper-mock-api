@@ -3,7 +3,7 @@
 Einfache Demo-API, die Dateien aus `geodata_clean` als Download bereitstellt.
 
 Die API unterscheidet:
-- Typen: `nuts`, `lau`, `lor`
+- Typen: `nuts`, `lau`
 - Formate: `csv`, `geojson`
 - Versionen: z. B. `2003`, `2010`, `2024`
 - Level (falls vorhanden, z. B. bei NUTS): `0`, `1`, `2`, `3`
@@ -30,7 +30,7 @@ Metadaten zu verfuegbaren Typen/Formaten/Versionen.
 
 3. `GET /api/v1/catalog`
 Liefert alle Dateien als Katalog (JSON), optional gefiltert:
-- `type` (`nuts|lau|lor`)
+- `type` (`nuts|lau`)
 - `format` (`csv|geojson`)
 - `version` (z. B. `2024`)
 - `level` (z. B. `2`)
@@ -167,4 +167,3 @@ sudo ufw allow 8080/tcp
 ```bash
 DATA_ROOT=/mein/pfad/zu/geodata_clean HOST=0.0.0.0 PORT=8080 python3 -m app.main
 ```
-- Fuer `lor` sind aktuell nur dann Ergebnisse vorhanden, wenn entsprechende Dateien im Datenordner liegen.
